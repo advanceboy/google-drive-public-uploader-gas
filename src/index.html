@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://ajax.aspnetcdn.com/ajax/jquery.mobile/1.4.5/jquery.mobile-1.4.5.min.css" rel="stylesheet" />
+  <script src="https://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.12.4.min.js"></script>
+  <script>
+      var reader = new FileReader();
+      var files, fileCounter;
+      // ドライブのリンク先を設定 (Code.js の HtmlService.createTemplateFromFile による、コード生成)
+      var resource = <?!= JSON.stringify(getResource_()) ?>;
+      var driveFolderUrl = "https://drive.google.com/drive/folders/" + resource.keyfolder;
+
+      // ファイルをロードする promise を作成するメソッド
+      function readFileAsDataUrlAsync(file){
+        var defer = $.Deferred();
+        var reader = new FileReader();
+        reader.onload = function () { defer.resolve(reader.result); }
+        reader.onerror = function () { defer.reject(); }
+        reader.readAsDataURL(file);
+        return defer.promise();
+      }
+
+      // Drive に ファイルを書き込む promise を作成するメソッド
+      function saveFileAsync(dataURL, fileName) {
+        var defer = $.Deferred();
+        google.script.run
+          .withSuccessHandler(function () {
+            defer.resolve();
+          }).withFailureHandler(function () {
+            defer.reject();
+          }).saveFile(dataURL, fileName);
+        return defer.promise();
+      }
+
+      // 非同期の読み込み・保存処理を、同期的に行う promise を作成するメソッド
+      function uploadFilesAsync () {
+        $('#btnSubmit').button('disable'); 
+        $.mobile.loading('show', { text: 'uploading', theme: 'b' });
+        console.log('uploading started.');
+
+        var $txtProgress = $('#txtProgress');
+        $txtProgress.empty();
+        var files = $('#formFiles')[0].files;
+        var failureFiles = [];
+        var pSaving = $.Deferred().resolve().promise(); // 'resolve' 状態の promise を作成する
+
+        if (!window.FileReader) {
+          // FileReader API 非対応デバイスはサポート外
+          $txtProgress.text('Your Browser is not Supported.');
+        } else if (!(files.length > 0)) {
+          // ファイルがなければ何もしない
+          $txtProgress.text('no file');
+        } else {
+          // file の数だけ、順次 pSaving チェーンに加えていく
+          $.each(files, function (index, file) {
+            pSaving = 
+              pSaving.then(function () {
+                console.log('reading: ' + file.name);
+                $txtProgress.text("uploading (" + (index + 1) + '/' + files.length + ': ' + file.name + ')');
+                return readFileAsDataUrlAsync(file);
+              }).then(function (dataURL) {
+                console.log('saving: ' + file.name);
+                return saveFileAsync(dataURL, file.name);
+              }).then(function () {
+                console.log('saving completed!: ' + file.name);
+              }, function () {
+                // readFileAsDataUrlAsync 又は saveFileAsync どちらかが失敗した場合
+                console.log('failure saving: ' + file.name);
+                failureFiles.push(file.name);
+                return $.Deferred().resolve().promise();  // 状態を 'resolved' にして、次のアップロードを続行する
+              });
+          });
+
+          // ファイル保存終了処理
+          pSaving = 
+            pSaving.then(function () {
+              $("#formFiles").val('');  // clear file input
+
+              if (failureFiles.length > 0) {
+                $txtProgress.text('failed:');
+                var $failedList = $('<ul />');
+                $.each(failureFiles, function (index, fileName) { $('<li />').text('' + fileName).appendTo($failedList); });
+                $txtProgress.append($failedList);
+              } else {
+                $txtProgress.text('completed!');
+              }
+            });
+        }
+
+        // UI の後始末
+        pSaving = 
+          pSaving.then(function () {
+            $.mobile.loading("hide");
+            $('#btnSubmit').button('enable');
+          });
+        return pSaving;
+      } // end uploadFilesAsync
+
+      $(function (){
+        $("#linkForDrive").attr('href', driveFolderUrl); 
+      });
+    </script>
+    <script src="https://ajax.aspnetcdn.com/ajax/jquery.mobile/1.4.5/jquery.mobile-1.4.5.min.js"></script>
+</head>
+<body>
+  <div data-role="page">
+    <div data-role="header">
+      <h1>Google Drive Public Uploader GAS</h1>
+    </div>
+    <div role="main" class="ui-content">
+      <div class="ui-body ui-body-d ui-corner-all">
+        <p>ファイルを選択 (複数可) し、「アップロード」ボタンでアップロードを開始します。</p>
+      </div>
+      <form method="post" enctype="multipart/form-data">
+        <input type="file" id="formFiles" multiple />
+        <input type="button" id="btnSubmit" value="アップロード" class="action" onclick="uploadFilesAsync()" />
+      </form>
+      <div class="ui-body ui-body-d ui-corner-all">
+        <p>アップロード済みファイルの参照、又は Google Drive への直接アップロードは、 <a id="linkForDrive" href="">こちら</a> から。</p>
+      </div>
+      <div class="ui-body ui-body-d ui-corner-all">
+        <p id="txtProgress"></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

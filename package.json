@@ -1,0 +1,9 @@
+{
+  "name": "google-drive-public-uploader-gas",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {},
+  "devDependencies": {
+    "@types/google-apps-script": "0.0.11"
+  }
+}
