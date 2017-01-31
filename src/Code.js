@@ -25,7 +25,6 @@ function doGet(e) {
     .evaluate() // HTML 内に、 getResource_() の変数の値を埋め込む
     .setSandboxMode(HtmlService.SandboxMode.IFRAME)
     .addMetaTag('viewport', 'width=device-width, initial-scale=1')
-    .addMetaTag('robots', 'noindex')
     .setTitle('Google Drive Public Uploader GAS');;
 }
 

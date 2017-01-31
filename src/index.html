@@ -110,14 +110,14 @@
     </div>
     <div role="main" class="ui-content">
       <div class="ui-body ui-body-d ui-corner-all">
-        <p>ファイルを選択 (複数可) し、「アップロード」ボタンでアップロードを開始します。</p>
+        <p>Select the file(s) and start uploading with the "Upload" button.</p>
       </div>
       <form method="post" enctype="multipart/form-data">
         <input type="file" id="formFiles" multiple />
-        <input type="button" id="btnSubmit" value="アップロード" class="action" onclick="uploadFilesAsync()" />
+        <input type="button" id="btnSubmit" value="Upload" class="action" onclick="uploadFilesAsync()" />
       </form>
       <div class="ui-body ui-body-d ui-corner-all">
-        <p>アップロード済みファイルの参照、又は Google Drive への直接アップロードは、 <a id="linkForDrive" href="">こちら</a> から。</p>
+        <p>Browse uploaded files or upload directly to Google Drive from <a id="linkForDrive" href="">here</a>.</p>
       </div>
       <div class="ui-body ui-body-d ui-corner-all">
         <p id="txtProgress"></p>

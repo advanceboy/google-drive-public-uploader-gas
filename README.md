@@ -54,6 +54,7 @@ Google Apps Script (以下 GAS) の Webアプリケーションを利用した�
     ```
     gapps init *DRIVE_FILE_ID*
     ```
+    * このとき、 ローカルに `/src/コード.js` が作成される場合がありますが、削除してかまいません。
 
 ### プロジェクトのデプロイ
 
