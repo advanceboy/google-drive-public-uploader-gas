@@ -128,7 +128,7 @@
             console.log('got: ' + value.name);
             $('<li />')
               .text(value.name + ' \u202f ')
-              .append($('<a href="javascript:void(0)" download="" onclick="" class="ui-btn ui-btn-inline ui-corner-all">Download from GAS</a>').attr('download', value.name).attr('onclick', 'fetchFileAsync(this, "' + value.fileId + '"); return false;' ))
+              .append($('<a href="javascript:void(0)" download="" onclick="" class="ui-btn ui-btn-inline ui-corner-all asyncButton">Download from GAS</a>').attr('download', value.name).attr('onclick', 'fetchFileAsync(this, "' + value.fileId + '"); return false;' ))
               .appendTo($ul);
           });
           $txtProgress.append($ul);
@@ -146,18 +146,20 @@
       // ファイルをダウンロードし、 指定したエレメントの href に dataURL として設定し、クリックするメソッド
       function fetchFileAsync (element, fileId) {
         var $element = $(element);
-        $element.addClass('ui-state-disabled');
+        $('.asyncButton').addClass('ui-state-disabled');
         $.mobile.loading('show', { text: 'uploading', theme: 'b' });
         console.log('downloading started: ' + fileId);
 
         downloadFileAsync(fileId).then(function (dataURL) {
           console.log('got: ' + fileId);
           // href 追加、 onclick 属性を削除して、 リンクをクリック
-          $element.removeClass('ui-state-disabled').attr('href', dataURL).removeAttr('onclick')[0].click();
+          $element.attr('href', dataURL).removeAttr('onclick');
+          $('.asyncButton').removeClass('ui-state-disabled');
+          $element[0].click();
         }, function () {
           // 失敗時
           console.log('failure downloading:' + fileId);
-          $element.removeClass('ui-state-disabled');
+          $('.asyncButton').removeClass('ui-state-disabled');
           return $.Deferred().resolve().promise();  // 状態を 'resolved' にして、次の処理を続行する
         }).then(function () {
           // UI の後始末
