@@ -21,21 +21,37 @@
         return defer.promise();
       }
 
-      // Drive に ファイルを書き込む promise を作成するメソッド
-      function saveFileAsync(dataURL, fileName) {
+      // サーバサイド関数実行する promise を作成するメソッド
+      function callMyFuncAsync(funcName, args) {
         var defer = $.Deferred();
-        google.script.run
-          .withSuccessHandler(function () {
-            defer.resolve();
+        var runObject = google.script.run
+          .withSuccessHandler(function (result) {
+            defer.resolve(result);
           }).withFailureHandler(function () {
             defer.reject();
-          }).saveFile(dataURL, fileName);
+          });
+          runObject[funcName].apply(runObject, args);
         return defer.promise();
       }
 
-      // 非同期の読み込み・保存処理を、同期的に行う promise を作成するメソッド
+      // Drive に ファイルを書き込む promise を作成するメソッド
+      function saveFileAsync(dataURL, fileName) {
+        return callMyFuncAsync('saveFile', [ dataURL, fileName ]);
+      }
+
+      // フォルダ内のファイル名と FileId を列挙する promise を作成するメソッド
+      function listFilesAsync() {
+        return callMyFuncAsync('listFiles', []);
+      }
+
+      // 指定した FileId から dataURL を取得する promise を作成するメソッド
+      function downloadFileAsync(fileId) {
+        return callMyFuncAsync('downloadFile', [ fileId ]);
+      }
+
+      // 非同期の読み込み・保存処理を、同期的に行うメソッド
       function uploadFilesAsync () {
-        $('#btnSubmit').button('disable'); 
+        $('.asyncButton').addClass('ui-state-disabled');
         $.mobile.loading('show', { text: 'uploading', theme: 'b' });
         console.log('uploading started.');
 
@@ -79,9 +95,9 @@
 
               if (failureFiles.length > 0) {
                 $txtProgress.text('failed:');
-                var $failedList = $('<ul />');
-                $.each(failureFiles, function (index, fileName) { $('<li />').text('' + fileName).appendTo($failedList); });
-                $txtProgress.append($failedList);
+                var $ul = $('<ul />');
+                $.each(failureFiles, function (index, fileName) { $('<li />').text('' + fileName).appendTo($ul); });
+                $txtProgress.append($ul);
               } else {
                 $txtProgress.text('completed!');
               }
@@ -92,10 +108,64 @@
         pSaving = 
           pSaving.then(function () {
             $.mobile.loading("hide");
-            $('#btnSubmit').button('enable');
+            $('.asyncButton').removeClass('ui-state-disabled');
           });
         return pSaving;
       } // end uploadFilesAsync
+
+      // 指定フォルダ内のファイルを列挙して表示するメソッド
+      function showListedFilesAsync () {
+        $('.asyncButton').addClass('ui-state-disabled');
+        $.mobile.loading('show', { text: 'uploading', theme: 'b' });
+        console.log('getting list started.');
+
+        var $txtProgress = $("#txtProgress");
+        $txtProgress.empty();
+        listFilesAsync().then(function (results) {
+          // 成功時
+          var $ul = $('<ul />');
+          $.each(results, function (index, value) {
+            console.log('got: ' + value.name);
+            $('<li />')
+              .text(value.name + ' \u202f ')
+              .append($('<a href="javascript:void(0)" download="" onclick="" class="ui-btn ui-btn-inline ui-corner-all asyncButton">Download from GAS</a>').attr('download', value.name).attr('onclick', 'fetchFileAsync(this, "' + value.fileId + '"); return false;' ))
+              .appendTo($ul);
+          });
+          $txtProgress.append($ul);
+        }, function () {
+          // 失敗時
+          console.log('failure showing list');
+          return $.Deferred().resolve().promise();  // 状態を 'resolved' にして、次の処理を続行する
+        }).then(function () {
+          // UI の後始末
+          $.mobile.loading("hide");
+          $('.asyncButton').removeClass('ui-state-disabled');
+        });
+      } // end showListedFilesAsync
+
+      // ファイルをダウンロードし、 指定したエレメントの href に dataURL として設定し、クリックするメソッド
+      function fetchFileAsync (element, fileId) {
+        var $element = $(element);
+        $('.asyncButton').addClass('ui-state-disabled');
+        $.mobile.loading('show', { text: 'uploading', theme: 'b' });
+        console.log('downloading started: ' + fileId);
+
+        downloadFileAsync(fileId).then(function (dataURL) {
+          console.log('got: ' + fileId);
+          // href 追加、 onclick 属性を削除して、 リンクをクリック
+          $element.attr('href', dataURL).removeAttr('onclick');
+          $('.asyncButton').removeClass('ui-state-disabled');
+          $element[0].click();
+        }, function () {
+          // 失敗時
+          console.log('failure downloading:' + fileId);
+          $('.asyncButton').removeClass('ui-state-disabled');
+          return $.Deferred().resolve().promise();  // 状態を 'resolved' にして、次の処理を続行する
+        }).then(function () {
+          // UI の後始末
+          $.mobile.loading("hide");
+        });
+      } // end fetchFileAsync
 
       $(function (){
         $("#linkForDrive").attr('href', driveFolderUrl); 
@@ -114,13 +184,14 @@
       </div>
       <form method="post" enctype="multipart/form-data">
         <input type="file" id="formFiles" multiple />
-        <input type="button" id="btnSubmit" value="Upload" class="action" onclick="uploadFilesAsync()" />
+        <button type="button" class="action asyncButton" onclick="uploadFilesAsync()">Upload</button>
       </form>
-      <div class="ui-body ui-body-d ui-corner-all">
-        <p>Browse uploaded files or upload directly to Google Drive from <a id="linkForDrive" href="">here</a>.</p>
-      </div>
+      <button class="ui-btn ui-corner-all asyncButton" onclick="showListedFilesAsync()">Show File List</button>
       <div class="ui-body ui-body-d ui-corner-all">
         <p id="txtProgress"></p>
+      </div>
+      <div class="ui-body ui-body-d ui-corner-all">
+        <p>Browse uploaded files or upload directly to Google Drive from <a id="linkForDrive" href="">here</a>.</p>
       </div>
     </div>
   </div>
