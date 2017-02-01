@@ -34,3 +34,20 @@ function saveFile(dataURL, fileName) {
   var file = Utilities.newBlob(Utilities.base64Decode(dataURL.substr(dataURL.indexOf('base64,') + 7)), contentType, fileName);
   DriveApp.getFolderById(getResource_().keyfolder).createFile(file);
 }
+
+// フォルダ内のファイル名と FileId を列挙するメソッド
+function listFiles() {
+  var results = [];
+  var files = DriveApp.getFolderById(getResource_().keyfolder).getFiles();
+  while (files.hasNext()) {
+    var file = files.next();
+    results.push({ name: file.getName(), fileId: file.getId(), downloadUrl: file.getDownloadUrl() });
+  }
+  return results;
+}
+
+// 指定した FileId から dataURL を取得するメソッド
+function downloadFile(fileId) {
+  var blob = DriveApp.getFileById(fileId).getBlob();
+  return 'data:' + blob.getContentType() + ';base64,' + Utilities.base64Encode(blob.getBytes());
+}
